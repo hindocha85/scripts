@@ -1,0 +1,40 @@
+Connect-AzAccount
+ 
+$rgName = "rg-blah"
+$accountName = "blah"
+ 
+Set-AzStorageAccount -ResourceGroupName $rgName -AccountName $accountName -AllowCrossTenantReplication $false
+ 
+foreach ($storageaccount in $storage) {
+}
+# Define the path to the CSV file
+$csvPath = "~/Documents/storageAllowCrossTenatReplicationEnabled.csv"
+echo $csvPath
+ 
+# Import the CSV file
+$tenants = Import-Csv -Path $csvPath
+ 
+# Loop through each row in the CSV
+foreach ($tenant in $tenants) {
+    # Extract necessary information from the CSV (assuming the CSV has a column called TenantID)
+    $tenantID = $tenant.storage
+    $resourceName = $tenant.rg
+ 
+    # Output the current tenant being processed
+    Write-Host "Processing Tenant: $tenantID for Resource: $resourceName"
+ 
+    # Disable AllowCrossTenantReplication for this tenant/resource
+    try {
+        # Replace the following command with the actual command you're using to disable cross-tenant replication
+        # For example:
+        Set-AzReplicationPolicy -TenantID $tenantID -ResourceName $resourceName -AllowCrossTenantReplication $false
+ 
+        Write-Host "Successfully disabled AllowCrossTenantReplication for Tenant: $tenantID"
+    } catch {
+        Write-Host "Error disabling AllowCrossTenantReplication for Tenant: $tenantID - $_"
+    }
+}
+ 
+Write-Host "Completed processing all tenants."
+ 
+ 
