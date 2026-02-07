@@ -1,0 +1,26 @@
+{
+"displayName": "Deny All Azure Bot Channels Except Email (Explicit List)",
+"description": "Deny creation of any Azure Bot Service channel except Email.",
+"policyType": "Custom",
+"mode": "All",
+"metadata": {
+"category": "Bot Service"
+},
+"policyRule": {
+"if": {
+"allOf": [
+{
+"field": "type",
+"equals": "Microsoft.BotService/botServices/channels"
+},
+{
+"field": "name",
+"notEquals": "EmailChannel"
+}
+]
+},
+"then": {
+"effect": "deny"
+}
+}
+}
