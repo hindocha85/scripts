@@ -1,0 +1,75 @@
+AV Zone Disabled
+
+Resources
+| where type =~ "microsoft.compute/virtualmachines"
+| extend vmName = name,
+subscriptionId = subscriptionId,
+resourceGroup = resourceGroup,
+region = location,
+availabilityZone = tostring(properties.zones)
+| where isempty(availabilityZone) or availabilityZone == "[]"
+| extend disk_count = array_length(properties.storageProfile.dataDisks)
+| project vmName,
+subscriptionId,
+resourceGroup,
+region,
+disk_count,
+Availability_Zone = "Disabled"
+
+
+AV set Disabled
+
+Resources
+| where type =~ "microsoft.compute/virtualmachines"
+| extend vmName = name,
+subscriptionId = subscriptionId,
+resourceGroup = resourceGroup,
+region = location,
+availabilitySet = tostring(properties.availabilitySet.id)
+| where isempty(availabilitySet)
+| extend disk_count = array_length(properties.storageProfile.dataDisks)
+| project vmName,
+subscriptionId,
+resourceGroup,
+region,
+disk_count,
+Availability_Set = "Disabled"
+| order by region asc, vmName asc
+
+AV set enabled
+
+Resources
+| where type =~ "microsoft.compute/virtualmachines"
+| extend vmName = name,
+subscriptionId = subscriptionId,
+resourceGroup = resourceGroup,
+region = location,
+availabilitySet = tostring(properties.availabilitySet.id)
+| where not(isempty(availabilitySet))
+| extend disk_count = array_length(properties.storageProfile.dataDisks)
+| project vmName,
+subscriptionId,
+resourceGroup,
+region,
+disk_count,
+Availability_Set = "Enabled"
+| order by region asc, vmName asc
+
+AZ not enabled
+
+Resources
+| where type =~ "microsoft.compute/virtualmachines"
+| extend vmName = name,
+subscriptionId = subscriptionId,
+resourceGroup = resourceGroup,
+region = location,
+availabilityZone = tostring(properties.zones)
+| where not(isempty(availabilityZone)) and availabilityZone != "[]"
+| extend disk_count = array_length(properties.storageProfile.dataDisks)
+| project vmName,
+subscriptionId,
+resourceGroup,
+region,
+disk_count,
+Availability_Zone = "Enabled"
+| order by region asc, vmName asc
