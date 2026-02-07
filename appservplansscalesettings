@@ -1,0 +1,33 @@
+```kusto
+resources
+| where type == "microsoft.web/serverfarms"
+| extend skuName = sku.name
+| extend skuTier = sku.tier
+| extend skuCapacity = sku.capacity
+| join kind=leftouter (
+    resources
+    | where type == "microsoft.insights/autoscalesettings"
+    | extend targetResourceId = tolower(properties.targetResourceUri)
+    | project targetResourceId, 
+        autoScaleMinimum = properties.profiles[0].capacity.minimum,
+        autoScaleMaximum = properties.profiles[0].capacity.maximum,
+        autoScaleDefault = properties.profiles[0].capacity.default,
+        autoScaleRules = array_length(properties.profiles[0].rules)
+) on $left.id == $right.targetResourceId
+| project 
+    subscriptionId,
+    resourceGroup,
+    name,
+    location,
+    skuTier,
+    skuName,
+    currentInstanceCount = skuCapacity,
+    minimumInstanceCount = coalesce(autoScaleMinimum, tostring(skuCapacity)),
+    maximumInstanceCount = autoScaleMaximum,
+    scaleType = case(
+        isnotnull(autoScaleRules) and autoScaleRules > 0, strcat("Rule-Based (", autoScaleRules, " rules)"),
+        isnotnull(autoScaleMinimum), "Auto Scale Enabled",
+        "Manual"
+    )
+| order by name asc
+```
