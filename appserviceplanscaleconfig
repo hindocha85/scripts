@@ -1,0 +1,25 @@
+```kusto
+resources
+| where type == "microsoft.web/serverfarms"
+| extend skuName = sku.name
+| extend skuTier = sku.tier
+| extend skuCapacity = sku.capacity
+| extend autoScaleEnabled = properties.targetWorkerCount > 0 or isnotnull(properties.targetWorkerCount)
+| project 
+    subscriptionId,
+    resourceGroup,
+    name,
+    location,
+    skuName,
+    skuTier,
+    currentInstanceCount = skuCapacity,
+    minimumInstanceCount = coalesce(properties.minimumElasticInstanceCount, skuCapacity),
+    maximumInstanceCount = properties.maximumElasticInstanceCount,
+    scaleType = case(
+        isnotnull(properties.maximumElasticInstanceCount), "Elastic/Auto Scale",
+        skuTier contains "Dynamic" or skuTier contains "Elastic", "Consumption/Dynamic",
+        "Manual"
+    ),
+    properties
+| order by name asc
+```
