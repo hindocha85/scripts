@@ -1,0 +1,28 @@
+body('Submission')?['r76361c7a0dbf4b59b37af4e7f720391b’] -pillar
+Target submit Date
+formatDateTime(body(’Submissions')?['r970b2cd5d10749db874397ffc144ec1a'], 'dddd,MM-dd-yyyy’)
+Trim
+trim(body('Get_response_details')?['r76361c7a0dbf4b59b37af4e7f720391b'])
+
+Format date and time
+
+formatDateTime(body('CreateTRBFeature-3PSAorVSA')?['fields']?['System_CreatedDate'], 'MM-dd-yyyy')
+
+toLower(triggerBody()?['contract'])
+concat(items('For_each'),'<br>')
+
+if(equals(triggerBody()?['Subject'],''),'Notification of ASM Submission',triggerBody()?['Subject'])
+Convert json array to plain string
+join(body('Your_Previous_Action'), ', ‘)
+
+trim(body('Get_response_details')?['r76361c7a0dbf4b59b37af4e7f720391b'])
+
+formatDateTime(body(’Submissions')?['r970b2cd5d10749db874397ffc144ec1a'], 'dddd,MM-dd-yyyy’)
+
+formatDateTime(body('CreateTRBFeature-3PSAorVSA')?['fields']?['System_CreatedDate'], ‘dddd,MM-dd-yyyy')
+
+
+toLower(triggerBody()?['contract'])
+concat(items('For_each'),'<br>')
+
+if(equals(triggerBody()?['Subject'],''),'Notification of ASM Submission',triggerBody()?['Subject'])
