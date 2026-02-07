@@ -1,0 +1,55 @@
+Resources
+| where type == "microsoft.compute/virtualmachines"
+| extend
+vmName = name,
+subscriptionId = tostring(subscriptionId),
+resourceGroup = tostring(resourceGroup),
+region = tostring(location),
+availabilityZone = tostring(properties.zones[0]),
+availabilitySetId = tostring(properties.availabilitySet.id),
+dataDisks = properties.storageProfile.dataDisks,
+osDisk = properties.storageProfile.osDisk
+// Only VMs in an availability zone OR availability set
+| where isnotempty(availabilityZone) or isnotempty(availabilitySetId)
+// Extract availability set name
+| extend availabilitySet = iff(
+isnotempty(availabilitySetId),
+extract("/availabilitySets/([^/]+)", 1, availabilitySetId),
+"-"
+)
+// OS disk details
+| extend
+osDiskType = tostring(osDisk.managedDisk.storageAccountType),
+osDiskCaching = tostring(osDisk.caching),
+osDiskSizeGB = tostring(osDisk.diskSizeGB)
+// Data disk breakdown (arrays)
+| extend
+dataDiskCount = array_length(dataDisks),
+dataDiskNames = extract_all(@"name"":""([^""]+)", tostring(dataDisks)),
+dataDiskTypes = extract_all(@"storageAccountType"":""([^""]+)", tostring(dataDisks)),
+dataDiskCaching = extract_all(@"caching"":""([^""]+)", tostring(dataDisks)),
+dataDiskTiers = extract_all(@"tier"":""([^""]+)", tostring(dataDisks)),
+dataDiskSizesGB = extract_all(@"diskSizeGB"":([0-9]+)", tostring(dataDisks))
+// Availability flags
+| extend availability_set_enabled = iff(isnotempty(availabilitySetId), "Yes", "No")
+| extend availability_zone_enabled = iff(isnotempty(availabilityZone), availabilityZone, "-")
+// Output
+| project
+vmName,
+subscriptionId,
+resourceGroup,
+region,
+availability_zone_enabled,
+availability_set_enabled,
+availabilitySet,
+availabilityZone,
+osDiskType,
+osDiskCaching,
+osDiskSizeGB,
+dataDiskCount,
+dataDiskNames,
+dataDiskTypes,
+dataDiskCaching,
+dataDiskTiers,
+dataDiskSizesGB
+| order by region asc, vmName asc
