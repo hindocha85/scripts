@@ -1,0 +1,69 @@
+# Connect to Azure
+Connect-AzAccount
+# select SubscriptionName
+Set-AzContext -SubscriptionId "blah"
+ 
+$appgwName = "umi-blah"
+$rgName = "rg-blah"
+$location = "West US 2"
+$identityName = "umi-blah"
+ 
+#create a user assigned identity
+ 
+#option 1 - Create identity
+$identity = New-AzApplicationGatewayman -Name $identityName -ResourceGroupName $rgName -Location $location
+ 
+#assign the identity to app gateway
+$appgwIdentity = Set-AzApplicationGatewayIdentity -UserAssignedIdentity $identity.Id -ApplicationGateway $appgw
+#commit
+$updatedAppGw = Set-AzApplicationGateway -ApplicationGateway $appgw
+ 
+$appgwName = "<your app gw name>"
+$rgName = "<your resource group name>"
+$location = "<your resource location>"
+$identityName = "<your identity name>"
+# Get the Application Gateway we want to modify
+$appgw = Get-AzApplicationGateway -Name $appgwName -ResourceGroupName $rgName
+
+
+# Get the secret ID from Key Vault
+$secret = Get-AzKeyVaultSecret -VaultName "kv-blah" -Name "blah-dev"
+#$secretId = $secret.Id.Replace($secret.Version, "") # Remove the secret version so Application Gateway uses the latest version in future syncs
+# Specify the secret ID from Key Vault
+Add-AzApplicationGatewaySslCertificate -KeyVaultSecretId $secret.Id -ApplicationGateway $appgw -Name $secret.Name
+# Commit the changes to the Application Gateway
+Set-AzApplicationGateway -ApplicationGateway $appgw
+ 
+$ResourceGroupName = "yourResourceGroupName"
+$AppGatewayName = "yourAppGatewayName"
+$VNetName = "yourVNetName"
+$SubnetName = "yourSubnetName"
+$BackendPoolName = "yourBackendPoolName"
+$BackendAddress = "yourBackendAddress"
+$FrontendIPName = "yourFrontendIPName"
+$ListenerName = "yourListenerName"
+$RuleName = "yourRuleName"
+ 
+$appgwName = "umi-blah"
+$rgName = "rg-blah"
+$location = "West US 2"
+$identityName = "umi-blah"
+ 
+# Enable Managed Identity for the Application Gateway
+$AppGateway = Set-AzApplicationGateway -IdentityType SystemAssigned -ResourceGroupName $ResourceGroupName -Name $AppGatewayName
+ 
+ 
+# Connect to Azure
+Connect-AzAccount
+#select SubscriptionName
+Set-AzContext -SubscriptionId "0000000000"
+# select ResourceGroup
+$ResourceGroup = "rg-blah"
+# select storage account
+$StorageAccountName = "blah"
+#set the storage account
+set-AzStorageAccount -ResourceGroupName $ResourceGroup -Name $StorageAccountName -AllowCrossTenantReplication $false -SoftDeleteFeatureEnabled $false
+ 
+Disable-AzStorageBlobDeleteRetentionPolicy -ResourceGroupName $ResourceGroup -Name $StorageAccountName
+ 
+ 
