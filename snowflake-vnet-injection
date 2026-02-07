@@ -1,0 +1,14 @@
+#log into Azure
+az login
+#enter subscription number you want to work in
+
+#you will need to replace values below with your own
+#resource-group
+#account-name
+
+az storage account network-rule add --account-name blah --resource-group blah --subnet "/subscriptions/13e7bc0f-30e1-4036-96cc-64f2df871d2d/resourceGroups/deployment-infra-rg2/providers/Microsoft.Network/virtualNetworks/deployment-vnet2/subnets/gs"
+az storage account network-rule add --account-name blah --resource-group blah --subnet "/subscriptions/13e7bc0f-30e1-4036-96cc-64f2df871d2d/resourceGroups/deployment-infra-rg2/providers/Microsoft.Network/virtualNetworks/deployment-vnet2/subnets/xp"
+az storage account network-rule add --account-name blah --resource-group blah --subnet "/subscriptions/4575fb04-6859-4781-8948-7f3a92dc06a3/resourceGroups/deployment-infra-rg/providers/Microsoft.Network/virtualNetworks/deployment-vnet/subnets/gs"
+az storage account network-rule add --account-name blah --resource-group blah --subnet "/subscriptions/4575fb04-6859-4781-8948-7f3a92dc06a3/resourceGroups/deployment-infra-rg/providers/Microsoft.Network/virtualNetworks/deployment-vnet/subnets/xp"
+az storage account network-rule add --account-name blah --resource-group blah --subnet "/subscriptions/57e59b3e-2841-4f01-970a-af746012221a/resourceGroups/deployment-infra-rg3/providers/Microsoft.Network/virtualNetworks/deployment-vnet3/subnets/gs"
+az storage account network-rule add --account-name blah --resource-group blah --subnet "/subscriptions/57e59b3e-2841-4f01-970a-af746012221a/resourceGroups/deployment-infra-rg3/providers/Microsoft.Network/virtualNetworks/deployment-vnet3/subnets/xp"
