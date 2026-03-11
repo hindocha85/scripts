@@ -1,0 +1,193 @@
+
+Resources
+| where type == "microsoft.web/serverfarms"
+| extend operatingSystem = case(
+    tostring(properties.kind) == "linux", "Linux",
+    tostring(properties.kind) == "app", "Windows",
+    "Other"
+)
+| where operatingSystem in ("Windows", "Linux")
+| extend
+    skuName = tostring(sku.name),
+    skuTier = tostring(sku.tier),
+    instanceCount = toint(sku.capacity)
+| extend planModel = case(
+    skuTier =~ "ElasticPremium", "Elastic",
+    skuTier =~ "Dynamic", "Consumption",
+    "Dedicated"
+)
+| extend workloadTier = case(
+    skuTier =~ "ElasticPremium", "Elastic",
+    skuTier =~ "Dynamic", "Consumption",
+    skuTier has "Premium", "Premium",
+    skuTier has "Standard", "Standard",
+    skuTier has "Basic", "Basic",
+    skuTier has "Isolated", "Isolated",
+    "Other"
+)
+| extend isWindowsContainer = iff(
+    tostring(properties.kind) has "windows"
+    and tostring(properties.kind) has "container",
+    1, 0
+)
+| extend
+    isWindows = iff(operatingSystem == "Windows", 1, 0),
+    isLinux = iff(operatingSystem == "Linux", 1, 0),
+    isElastic = iff(planModel == "Elastic", 1, 0),
+    isDedicated = iff(planModel == "Dedicated", 1, 0),
+    isConsumption = iff(planModel == "Consumption", 1, 0),
+    region = location,
+    applicationID = tostring(tags["applicationID"]),
+    supportGroup = tostring(tags["supportGroup"]),
+    appFamily = tostring(tags["appFamily"]),
+    applicationCI = tostring(tags["applicationCI"]),
+    owner = tostring(tags["owner"])
+| join kind=leftouter (
+    ResourceContainers
+    | where type == "microsoft.resources/subscriptions"
+    | project subscriptionId, subscriptionName = name
+) on subscriptionId
+| extend estimatedMonthlyCostPerInstance = case(
+    skuName == "B1" and skuTier == "Basic", 38.5,
+    skuName == "B2" and skuTier == "Basic", 77.0,
+    skuName == "B3" and skuTier == "Basic", 154.0,
+    skuName == "S1" and skuTier == "Standard", 94.5,
+    skuName == "S2" and skuTier == "Standard", 189.0,
+    skuName == "S3" and skuTier == "Standard", 378.0,
+    skuName == "P0v3" and skuTier has "Premium", 84.0,
+    skuName == "P1v3" and skuTier has "Premium", 168.0,
+    skuName == "P2v3" and skuTier has "Premium", 336.0,
+    skuName == "P3v3" and skuTier has "Premium", 672.0,
+    skuName == "EP1" and skuTier == "ElasticPremium", 119.0,
+    skuName == "EP2" and skuTier == "ElasticPremium", 238.0,
+    skuName == "EP3" and skuTier == "ElasticPremium", 476.0,
+    0.0
+)
+| extend estimatedMonthlyCostTotal = estimatedMonthlyCostPerInstance * instanceCount
+| project
+    id,
+    name,
+    subscriptionName,
+    resourceGroup,
+    region,
+    operatingSystem,
+    skuName,
+    skuTier,
+    workloadTier,
+    planModel,
+    instanceCount,
+    estimatedMonthlyCostPerInstance,
+    estimatedMonthlyCostTotal,
+    applicationID,
+    supportGroup,
+    appFamily,
+    applicationCI,
+    owner
+| order by estimatedMonthlyCostTotal desc
+
+# Requires: Azure PowerShell module
+# Install if needed:
+# Install-Module -Name Az -Force
+
+# Login to Azure with tenant ID (replace with your tenant ID if different)
+Connect-AzAccount -TenantId 2e319086-9a26-46a3-865f-615bed576786
+
+# Path to your CSV file (macOS/Linux path format)
+$csvPath = "/Users/vic.hindocha/Documents/vmlist.csv"
+
+# Import VM details from CSV (must have column: VirtualMachine)
+$vmList = Import-Csv -Path $csvPath
+Write-Host "Loaded $($vmList.Count) VMs from CSV"
+
+# Get all subscriptions
+$subscriptions = Get-AzSubscription -TenantId 2e319086-9a26-46a3-865f-615bed576786
+
+# Prepare output array
+$results = @()
+
+foreach ($row in $vmList) {
+    $vmName = $row.VirtualMachine
+    Write-Host "Searching for VM: $vmName across all subscriptions..."
+    
+    $found = $false
+    $startTime = Get-Date
+    
+    # Search across all subscriptions
+    foreach ($sub in $subscriptions) {
+        Write-Host "  Checking subscription: $($sub.Name)..." -ForegroundColor Cyan
+        Set-AzContext -SubscriptionId $sub.Id -TenantId 2e319086-9a26-46a3-865f-615bed576786 | Out-Null
+        
+        # Try to find the VM in this subscription
+        $vm = Get-AzVM | Where-Object { $_.Name -eq $vmName } | Select-Object -First 1
+        
+        if ($vm) {
+            $vmWithStatus = Get-AzVM -ResourceGroupName $vm.ResourceGroupName -Name $vm.Name -Status
+        
+            if ($vmWithStatus) {
+                $found = $true
+                $subscriptionName = $sub.Name
+                $resourceGroup = $vmWithStatus.ResourceGroupName
+                $powerState = ($vmWithStatus.Statuses | Where-Object { $_.Code -like "PowerState*" }).DisplayStatus
+                
+                # Extract tags
+                $applicationID = if ($vmWithStatus.Tags -and $vmWithStatus.Tags.ContainsKey('applicationID')) { $vmWithStatus.Tags['applicationID'] } else { "Not Set" }
+                $supportGroup = if ($vmWithStatus.Tags -and $vmWithStatus.Tags.ContainsKey('supportGroup')) { $vmWithStatus.Tags['supportGroup'] } else { "Not Set" }
+                $availabilitySchedule = if ($vmWithStatus.Tags -and $vmWithStatus.Tags.ContainsKey('availabilitySchedule')) { $vmWithStatus.Tags['availabilitySchedule'] } else { "Not Set" }
+                
+                # Determine availability type
+                $availabilityType = "None"
+                if ($vmWithStatus.AvailabilitySetReference) {
+                    $availabilityType = "AvailabilitySet"
+                } elseif ($vmWithStatus.Zones -and $vmWithStatus.Zones.Count -gt 0) {
+                    $availabilityType = "AvailabilityZone"
+                }
+                
+                $endTime = Get-Date
+                $elapsed = ($endTime - $startTime).TotalSeconds
+                
+                Write-Host "Found VM: $vmName | Subscription: $subscriptionName | ResourceGroup: $resourceGroup | State: $powerState | TimeTaken: $elapsed sec" -ForegroundColor Green
+                
+                # Add result to array
+                $results += [PSCustomObject]@{
+                    VMName               = $vmName
+                    SubscriptionName     = $subscriptionName
+                    ResourceGroup        = $resourceGroup
+                    PowerState           = $powerState
+                    ApplicationID        = $applicationID
+                    SupportGroup         = $supportGroup
+                    AvailabilitySchedule = $availabilitySchedule
+                    AvailabilityType     = $availabilityType
+                    DiscoveredAt         = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+                    TimeTakenSeconds     = [math]::Round($elapsed, 2)
+                }
+                break
+            }
+        }
+    }
+    
+    if (-not $found) {
+        $endTime = Get-Date
+        $elapsed = ($endTime - $startTime).TotalSeconds
+        
+        Write-Host "VM not found: $vmName | TimeTaken: $elapsed sec" -ForegroundColor Yellow
+        $results += [PSCustomObject]@{
+            VMName               = $vmName
+            SubscriptionName     = "Not Found"
+            ResourceGroup        = "Not Found"
+            PowerState           = "Not Found"
+            ApplicationID        = "Not Found"
+            SupportGroup         = "Not Found"
+            AvailabilitySchedule = "Not Found"
+            AvailabilityType     = "Not Found"
+            DiscoveredAt         = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            TimeTakenSeconds     = [math]::Round($elapsed, 2)
+        }
+    }
+}
+
+# Export results to CSV
+$csvOutputPath = "/Users/vic.hindocha/Documents/vmlist_results.csv"
+$results | Export-Csv -Path $csvOutputPath -NoTypeInformation
+
+Write-Host "Validation complete. Results saved to $csvOutputPath"
+
